@@ -66,6 +66,39 @@ async def generate_point_cloud(src_pc_file: UploadFile = File(...),
         "err_msg": ""
     }
 
+@app.post("/api/pointcloud/add_coal")
+async def generate_point_cloud(src_pc_file: UploadFile = File(...),
+                               x_min: int = Form(0),
+                               x_max: int = Form(270),
+                               y_min: int = Form(0),
+                               y_max: int = Form(50),
+                               delimiter: str = Form(None),
+                               density: float = Form(0.5),
+                               nearest_k: int = Form(50),
+                               down_sample_size: float = Form(None)):
+    async with aiofiles.open("temp.txt", 'w') as out_file:
+        content = await src_pc_file.read()  # async read
+        await out_file.write(content.decode())  # async write
+    try:
+        file_code = await _generate_point_cloud("temp.txt",
+                                                [x_min, x_max],
+                                                [y_min, y_max],
+                                                density,
+                                                nearest_k,
+                                                delimiter,
+                                                down_sample_size)
+    except Exception as e:
+        return {"code": -1, "data": {}, "err_msg": str(e)}
+    return {
+        "code": 0,
+        "data": {
+            "file_marker": file_code.split("_")[0],
+            "file_name": file_code.split("_")[1]
+        },
+        "err_msg": ""
+    }
+
+
 
 @app.post("/api/pointcloud/download_file")
 async def get_file(file_marker: str = Body(...), file_name: str = Body(...)):

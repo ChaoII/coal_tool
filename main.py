@@ -1,13 +1,15 @@
 import os.path
 from typing import Optional
-
+import uuid
 import aiofiles
 from starlette.responses import FileResponse
 from utils import register_offline_docs
 from fastapi import FastAPI, applications, File, UploadFile, Form, Body
 from starlette.staticfiles import StaticFiles
 from pydantic import BaseModel
-from pc_smooth1 import _generate_point_cloud
+from pc_smooth1 import _generate_point_cloud_file
+from pc_process import _point_cloud_process, PointProcessType
+from log import logger
 
 register_offline_docs(applications)
 # 实例化app
@@ -40,21 +42,26 @@ async def generate_point_cloud(src_pc_file: UploadFile = File(...),
                                x_max: int = Form(270),
                                y_min: int = Form(0),
                                y_max: int = Form(50),
-                               delimiter: str = Form(None),
+                               delimiter: str = Form(" "),
                                density: float = Form(0.5),
                                nearest_k: int = Form(50),
                                down_sample_size: float = Form(None)):
-    async with aiofiles.open("temp.txt", 'w') as out_file:
+    temp_filename = str(uuid.uuid4()).replace("-", "") + ".txt"
+    async with aiofiles.open(temp_filename, 'w') as out_file:
         content = await src_pc_file.read()  # async read
         await out_file.write(content.decode())  # async write
+    logger.info(f"创建了临时文件：【{temp_filename}】")
     try:
-        file_code = await _generate_point_cloud("temp.txt",
-                                                [x_min, x_max],
-                                                [y_min, y_max],
-                                                density,
-                                                nearest_k,
-                                                delimiter,
-                                                down_sample_size)
+        file_code = await _generate_point_cloud_file(temp_filename,
+                                                     [x_min, x_max],
+                                                     [y_min, y_max],
+                                                     density,
+                                                     nearest_k,
+                                                     delimiter,
+                                                     down_sample_size)
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+            logger.info(f"删除临时文件：【{temp_filename}】")
     except Exception as e:
         return {"code": -1, "data": {}, "err_msg": str(e)}
     return {
@@ -66,27 +73,46 @@ async def generate_point_cloud(src_pc_file: UploadFile = File(...),
         "err_msg": ""
     }
 
-@app.post("/api/pointcloud/add_coal")
-async def generate_point_cloud(src_pc_file: UploadFile = File(...),
-                               x_min: int = Form(0),
-                               x_max: int = Form(270),
-                               y_min: int = Form(0),
-                               y_max: int = Form(50),
-                               delimiter: str = Form(None),
-                               density: float = Form(0.5),
-                               nearest_k: int = Form(50),
-                               down_sample_size: float = Form(None)):
-    async with aiofiles.open("temp.txt", 'w') as out_file:
+
+@app.post("/api/pointcloud/store_coal")
+async def store_coal(src_pc_file: UploadFile = File(...),
+                     coal_weight: float = Form(0.0),
+                     process_x_min: int = Form(0),
+                     process_x_max: int = Form(0),
+                     process_y_min: int = Form(0),
+                     process_y_max: int = Form(0),
+                     coal_density: float = Form(2.7),
+                     new_index: int = Form(None),
+                     x_min: int = Form(0),
+                     x_max: int = Form(270),
+                     y_min: int = Form(0),
+                     y_max: int = Form(50),
+                     delimiter: str = Form(" "),
+                     density: float = Form(0.5),
+                     nearest_k: int = Form(50),
+                     down_sample_size: float = Form(None)):
+    temp_filename = str(uuid.uuid4()).replace("-", "") + ".txt"
+    async with aiofiles.open(temp_filename, 'w') as out_file:
         content = await src_pc_file.read()  # async read
         await out_file.write(content.decode())  # async write
+    logger.info(f"创建了临时文件：【{temp_filename}】")
     try:
-        file_code = await _generate_point_cloud("temp.txt",
-                                                [x_min, x_max],
-                                                [y_min, y_max],
-                                                density,
-                                                nearest_k,
-                                                delimiter,
-                                                down_sample_size)
+        file_code = await _point_cloud_process(temp_filename,
+                                               coal_weight,
+                                               [process_x_min, process_x_max],
+                                               [process_y_min, process_y_max],
+                                               coal_density,
+                                               PointProcessType.Storing,
+                                               delimiter,
+                                               new_index,
+                                               [x_min, x_max],
+                                               [y_min, y_max],
+                                               density,
+                                               nearest_k,
+                                               down_sample_size)
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+            logger.info(f"删除临时文件：【{temp_filename}】")
     except Exception as e:
         return {"code": -1, "data": {}, "err_msg": str(e)}
     return {
@@ -98,6 +124,55 @@ async def generate_point_cloud(src_pc_file: UploadFile = File(...),
         "err_msg": ""
     }
 
+
+@app.post("/api/pointcloud/take_coal")
+async def take_coal(src_pc_file: UploadFile = File(...),
+                    coal_weight: float = Form(0.0),
+                    process_x_min: int = Form(0),
+                    process_x_max: int = Form(0),
+                    process_y_min: int = Form(0),
+                    process_y_max: int = Form(0),
+                    coal_density: float = Form(2.7),
+                    new_index: int = Form(None),
+                    x_min: int = Form(0),
+                    x_max: int = Form(270),
+                    y_min: int = Form(0),
+                    y_max: int = Form(50),
+                    delimiter: str = Form(" "),
+                    density: float = Form(0.5),
+                    nearest_k: int = Form(50),
+                    down_sample_size: float = Form(None)):
+    temp_filename = str(uuid.uuid4()).replace("-", "") + ".txt"
+    async with aiofiles.open(temp_filename, 'w') as out_file:
+        content = await src_pc_file.read()  # async read
+        await out_file.write(content.decode())  # async write
+    try:
+        file_code = await _point_cloud_process(temp_filename,
+                                               coal_weight,
+                                               [process_x_min, process_x_max],
+                                               [process_y_min, process_y_max],
+                                               coal_density,
+                                               PointProcessType.Taking,
+                                               delimiter,
+                                               new_index,
+                                               [x_min, x_max],
+                                               [y_min, y_max],
+                                               density,
+                                               nearest_k,
+                                               down_sample_size)
+        if os.path.exists(temp_filename):
+            os.remove(temp_filename)
+            logger.info(f"删除临时文件：【{temp_filename}】")
+    except Exception as e:
+        return {"code": -1, "data": {}, "err_msg": str(e)}
+    return {
+        "code": 0,
+        "data": {
+            "file_marker": file_code.split("_")[0],
+            "file_name": file_code.split("_")[1]
+        },
+        "err_msg": ""
+    }
 
 
 @app.post("/api/pointcloud/download_file")

@@ -1,14 +1,12 @@
 import os.path
-from typing import Optional
 import uuid
 import aiofiles
 from starlette.responses import FileResponse
 from utils import register_offline_docs
 from fastapi import FastAPI, applications, File, UploadFile, Form, Body
 from starlette.staticfiles import StaticFiles
-from pydantic import BaseModel
 from pc_smooth1 import _generate_point_cloud_file
-from pc_process import _point_cloud_process, PointProcessType
+from pc_process import _point_cloud_process, PointProcessType, delete_temp_file
 from log import logger
 
 register_offline_docs(applications)
@@ -17,23 +15,6 @@ app = FastAPI()
 # 挂载静态路径将redoc和swagger-ui文件放置在静态路径下
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/files", StaticFiles(directory="files"), name="files")
-
-
-class CoroRange(BaseModel):
-    xmin: int
-    xmax: int
-    ymin: int
-    ymax: int
-
-
-class PointCloudInputModel(BaseModel):
-    coro_range: CoroRange
-    delimiter: str = " "
-    density: float = 0.5
-    nearest_k: int = 50
-    down_sample_size: Optional[float] = None
-    save_text_filename: str = "dst.txt"
-    save_mesh_filename: Optional[str] = None
 
 
 @app.post("/api/pointcloud/generate_point_cloud")
@@ -46,7 +27,7 @@ async def generate_point_cloud(src_pc_file: UploadFile = File(...),
                                density: float = Form(0.5),
                                nearest_k: int = Form(50),
                                down_sample_size: float = Form(None)):
-    temp_filename = str(uuid.uuid4()).replace("-", "") + ".txt"
+    temp_filename = "./temp/" + str(uuid.uuid4()).replace("-", "") + ".txt"
     async with aiofiles.open(temp_filename, 'w') as out_file:
         content = await src_pc_file.read()  # async read
         await out_file.write(content.decode())  # async write
@@ -59,11 +40,12 @@ async def generate_point_cloud(src_pc_file: UploadFile = File(...),
                                                      nearest_k,
                                                      delimiter,
                                                      down_sample_size)
-        if os.path.exists(temp_filename):
-            os.remove(temp_filename)
-            logger.info(f"删除临时文件：【{temp_filename}】")
+
+        await delete_temp_file(temp_filename)
     except Exception as e:
-        return {"code": -1, "data": {}, "err_msg": str(e)}
+        logger.error("点云重建失败", str(e))
+        await delete_temp_file(temp_filename)
+        return {"code": -1, "data": {}, "err_msg": "点云重建失败"}
     return {
         "code": 0,
         "data": {
@@ -76,13 +58,16 @@ async def generate_point_cloud(src_pc_file: UploadFile = File(...),
 
 @app.post("/api/pointcloud/store_coal")
 async def store_coal(src_pc_file: UploadFile = File(...),
-                     coal_weight: float = Form(0.0),
-                     process_x_min: int = Form(0),
-                     process_x_max: int = Form(0),
-                     process_y_min: int = Form(0),
-                     process_y_max: int = Form(0),
+                     coal_weight: float = Form(...),
+                     process_x_min: int = Form(...),
+                     process_x_max: int = Form(...),
+                     process_y_min: int = Form(None),
+                     process_y_max: int = Form(None),
                      coal_density: float = Form(2.7),
                      new_index: int = Form(None),
+                     x_edge_rate: float = Form(0.4),
+                     x_sections: int = Form(10),
+                     rebuild_point_cloud: bool = Form(False),
                      x_min: int = Form(0),
                      x_max: int = Form(270),
                      y_min: int = Form(0),
@@ -91,7 +76,7 @@ async def store_coal(src_pc_file: UploadFile = File(...),
                      density: float = Form(0.5),
                      nearest_k: int = Form(50),
                      down_sample_size: float = Form(None)):
-    temp_filename = str(uuid.uuid4()).replace("-", "") + ".txt"
+    temp_filename = "./temp/" + str(uuid.uuid4()).replace("-", "") + ".txt"
     async with aiofiles.open(temp_filename, 'w') as out_file:
         content = await src_pc_file.read()  # async read
         await out_file.write(content.decode())  # async write
@@ -105,16 +90,19 @@ async def store_coal(src_pc_file: UploadFile = File(...),
                                                PointProcessType.Storing,
                                                delimiter,
                                                new_index,
+                                               x_edge_rate,
+                                               x_sections,
+                                               rebuild_point_cloud,
                                                [x_min, x_max],
                                                [y_min, y_max],
                                                density,
                                                nearest_k,
                                                down_sample_size)
-        if os.path.exists(temp_filename):
-            os.remove(temp_filename)
-            logger.info(f"删除临时文件：【{temp_filename}】")
+        await delete_temp_file(temp_filename)
     except Exception as e:
-        return {"code": -1, "data": {}, "err_msg": str(e)}
+        logger.error("新增堆煤失败", str(e))
+        await delete_temp_file(temp_filename)
+        return {"code": -1, "data": {}, "err_msg": "新增堆煤失败"}
     return {
         "code": 0,
         "data": {
@@ -127,13 +115,16 @@ async def store_coal(src_pc_file: UploadFile = File(...),
 
 @app.post("/api/pointcloud/take_coal")
 async def take_coal(src_pc_file: UploadFile = File(...),
-                    coal_weight: float = Form(0.0),
-                    process_x_min: int = Form(0),
-                    process_x_max: int = Form(0),
-                    process_y_min: int = Form(0),
-                    process_y_max: int = Form(0),
+                    coal_weight: float = Form(...),
+                    process_x_min: int = Form(...),
+                    process_x_max: int = Form(...),
+                    process_y_min: int = Form(None),
+                    process_y_max: int = Form(None),
                     coal_density: float = Form(2.7),
                     new_index: int = Form(None),
+                    x_edge_rate: float = Form(0.4),
+                    x_sections: int = Form(10),
+                    rebuild_point_cloud: bool = Form(False),
                     x_min: int = Form(0),
                     x_max: int = Form(270),
                     y_min: int = Form(0),
@@ -142,7 +133,7 @@ async def take_coal(src_pc_file: UploadFile = File(...),
                     density: float = Form(0.5),
                     nearest_k: int = Form(50),
                     down_sample_size: float = Form(None)):
-    temp_filename = str(uuid.uuid4()).replace("-", "") + ".txt"
+    temp_filename = "./temp/" + str(uuid.uuid4()).replace("-", "") + ".txt"
     async with aiofiles.open(temp_filename, 'w') as out_file:
         content = await src_pc_file.read()  # async read
         await out_file.write(content.decode())  # async write
@@ -155,16 +146,19 @@ async def take_coal(src_pc_file: UploadFile = File(...),
                                                PointProcessType.Taking,
                                                delimiter,
                                                new_index,
+                                               x_edge_rate,
+                                               x_sections,
+                                               rebuild_point_cloud,
                                                [x_min, x_max],
                                                [y_min, y_max],
                                                density,
                                                nearest_k,
                                                down_sample_size)
-        if os.path.exists(temp_filename):
-            os.remove(temp_filename)
-            logger.info(f"删除临时文件：【{temp_filename}】")
+        await delete_temp_file(temp_filename)
     except Exception as e:
-        return {"code": -1, "data": {}, "err_msg": str(e)}
+        logger.error("取煤失败", str(e))
+        await delete_temp_file(temp_filename)
+        return {"code": -1, "data": {}, "err_msg": "取煤失败"}
     return {
         "code": 0,
         "data": {

@@ -1,0 +1,7 @@
+scipy
+pyvista
+open3d
+uvicorn
+aiofiles
+fastapi
+loguru

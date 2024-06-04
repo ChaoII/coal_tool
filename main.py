@@ -1,6 +1,7 @@
 import os.path
 import uuid
 import aiofiles
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse
 from utils import register_offline_docs
 from fastapi import FastAPI, applications, File, UploadFile, Form, Body
@@ -12,6 +13,15 @@ from log import logger
 register_offline_docs(applications)
 # 实例化app
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+
 # 挂载静态路径将redoc和swagger-ui文件放置在静态路径下
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/files", StaticFiles(directory="files"), name="files")

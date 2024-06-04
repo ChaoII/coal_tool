@@ -1,3 +1,13 @@
+## 部署
+### 1导入镜像
+```bash
+docker import pointcolud.tar pointcolud:v1.0
+```
+### 2运行容器
+```bash
+docker run -itd --name pc --restart always -w /app -v /etc/localtime:/etc/localtime -v /etc/timezone:/etc/timezone -p 9092:9092 pointcloud:v1.0 uvicorn main:app --host 0.0.0.0 --port 9092
+```
+
 ## 接口文档
 
 <details open>

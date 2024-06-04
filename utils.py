@@ -4,7 +4,6 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.docs import get_swagger_ui_oauth2_redirect_html
 
 
-
 def register_offline_docs(app: applications):
     def custom_swagger_ui_html(*args, **kwargs):
         return get_swagger_ui_html(

@@ -38,8 +38,8 @@ async def _generate_point_cloud_array(src_pc_filename: Union[np.ndarray, str],
         src_points = src_pc_filename
     else:
         raise IOError("文件必须是本地文件路径或者numpy数据类型")
-    x = np.arange(xrange[0], xrange[1], density)
-    y = np.arange(yrange[0], yrange[1], density)
+    x = np.arange(xrange[0], xrange[1] + density, density)
+    y = np.arange(yrange[0], yrange[1] + density, density)
     grid = np.array(list(itertools.product(x, y)))
     dst_points = np.zeros([grid.shape[0], 3])
     dst_points[:, :2] = grid

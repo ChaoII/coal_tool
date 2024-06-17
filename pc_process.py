@@ -41,7 +41,6 @@ async def calculate_height(xrange: list, height: float, x_edge_rate: float, x_se
     return x_masks
 
 
-@logger.catch
 async def _point_cloud_process(src_pc_filename: Union[str, np.ndarray],
                                coal_weight: float,
                                process_xrange: Union[np.ndarray, list],
@@ -95,6 +94,9 @@ async def _point_cloud_process(src_pc_filename: Union[str, np.ndarray],
     if rebuild_point_cloud:
         dst_points = await _generate_point_cloud_array(src_points, xrange, yrange, density, nearest_k, delimiter,
                                                        down_sample_size)
+        if dst_points.shape[0] != src_points.shape[0]:
+            raise ValueError(
+                "请确保在开启堆煤后点云重建时，确保输入的点云为已经标准化后的点云，并且点云重建的参数要和标准化时的一致")
         dst_points = np.c_[dst_points, src_points[:, 3]]
     else:
         dst_points = src_points

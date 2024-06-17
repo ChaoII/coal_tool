@@ -1,7 +1,7 @@
 ## 部署
 ### 1导入镜像
 ```bash
-docker import pointcolud.tar pointcolud:v1.0
+docker import pointcloud.tar pointcloud:v1.0
 ```
 ### 2运行容器
 ```bash

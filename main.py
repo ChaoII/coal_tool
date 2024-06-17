@@ -21,7 +21,6 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-
 # 挂载静态路径将redoc和swagger-ui文件放置在静态路径下
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/files", StaticFiles(directory="files"), name="files")
@@ -110,9 +109,10 @@ async def store_coal(src_pc_file: UploadFile = File(...),
                                                down_sample_size)
         await delete_temp_file(temp_filename)
     except Exception as e:
-        logger.error("新增堆煤失败", str(e))
+        err_msg = f"新增堆煤失败, {e}"
+        logger.error(err_msg)
         await delete_temp_file(temp_filename)
-        return {"code": -1, "data": {}, "err_msg": "新增堆煤失败"}
+        return {"code": -1, "data": {}, "err_msg": err_msg}
     return {
         "code": 0,
         "data": {
@@ -166,9 +166,10 @@ async def take_coal(src_pc_file: UploadFile = File(...),
                                                down_sample_size)
         await delete_temp_file(temp_filename)
     except Exception as e:
-        logger.error("取煤失败", str(e))
+        err_msg = f"取煤失败, {e}"
+        logger.error("取煤失败", err_msg)
         await delete_temp_file(temp_filename)
-        return {"code": -1, "data": {}, "err_msg": "取煤失败"}
+        return {"code": -1, "data": {}, "err_msg": err_msg}
     return {
         "code": 0,
         "data": {

@@ -1,34 +1,31 @@
+import os
+
 import requests
+import numpy as np
+
+from utils import get_split_points
 
 url = "http://127.0.0.1:8000/api/pointcloud/take_coal"
 
-data = dict(
+src_point = np.loadtxt("initial_point_response_file/src_point.txt", delimiter=" ")
+split_points = get_split_points("./initial_point_response_file")
+
+json = dict(
+    src_point=src_point.tolist(),
+    split_points=split_points,
     coal_weight=30000,
-    process_x_min=50,
-    process_x_max=80,
-    process_y_min=0,
-    process_y_max=50,
-    coal_density=2.7,
-    new_index=None,
+    process_xrange=[30, 50],
+    process_yrange=[0, 50],
+    coal_density=1.25,
     x_edge_rate=0.4,
     x_sections=10,
-    rebuild_point_cloud=True,
-    x_min=0,
-    x_max=270,
-    y_min=0,
-    y_max=50,
-    delimiter=" ",
-    density=0.5,
-    nearest_k=50,
-    down_sample_size=None
 )
 
-f = open("dst2.txt", "r")
+response = requests.post(url=url, json=json).json()
+src_point = response["data"]["src_point"]
+split_points = response["data"]["split_points"]
 
-files = dict(
-    src_pc_file=f
-)
-response = requests.post(url=url, data=data, files=files)
-f.close()
+np.savetxt("take_coal_response_file/src_point.txt", np.array(src_point), "%.4f", " ")
 
-print(response.json())
+for index, split_point in enumerate(split_points):
+    np.savetxt(f"take_coal_response_file/split_point_{index}.txt", np.array(split_point), "%.4f", " ")

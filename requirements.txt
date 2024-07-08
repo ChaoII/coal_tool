@@ -1,7 +1,11 @@
-scipy
-pyvista
-open3d
-uvicorn
+scipy~=1.11.4
+pyvista~=0.43.4
+open3d~=0.18.0
+uvicorn~=0.29.0
 aiofiles
-fastapi
-loguru
+fastapi~=0.110.1
+loguru~=0.7.0
+requests~=2.28.1
+numpy~=1.24.2
+pydantic~=2.3.0
+starlette~=0.37.2

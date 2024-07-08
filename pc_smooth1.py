@@ -25,37 +25,30 @@ async def _generate_filename(suffix: str) -> (str, str):
     return filepath, file_code
 
 
-async def _generate_point_cloud_array(src_pc_filename: Union[np.ndarray, str],
-                                      xrange: Union[np.ndarray, list],
-                                      yrange: Union[np.ndarray, list],
-                                      density: float = 0.5,
-                                      nearest_k: int = 50,
-                                      delimiter: str = " ",
-                                      down_sample_size: Optional[float] = None) -> np.ndarray:
-    if isinstance(src_pc_filename, str):
-        src_points = np.loadtxt(src_pc_filename, delimiter=delimiter)
-    elif isinstance(src_pc_filename, np.ndarray):
-        src_points = src_pc_filename
-    else:
-        raise IOError("文件必须是本地文件路径或者numpy数据类型")
+async def normalize_point_inner(src_point: np.ndarray,
+                                xrange: list,
+                                yrange: list,
+                                density: float = 0.5,
+                                nearest_k: int = 50,
+                                down_sample_size: Optional[float] = None) -> np.ndarray:
     x = np.arange(xrange[0], xrange[1] + density, density)
     y = np.arange(yrange[0], yrange[1] + density, density)
     grid = np.array(list(itertools.product(x, y)))
-    dst_points = np.zeros([grid.shape[0], 3])
-    dst_points[:, :2] = grid
-    kd_tree = cKDTree(src_points[:, :2])
+    dst_point = np.zeros([grid.shape[0], 3])
+    dst_point[:, :2] = grid
+    kd_tree = cKDTree(src_point[:, :2])
     # 对第二个点集合中的每个点查找最近邻
     # k = 1 表示只查找最近的一个邻点
     distances, indices = kd_tree.query(grid, nearest_k)  #
     for i, (distance, idx) in enumerate(zip(distances, indices)):
-        dst_points[i, 2] = np.average(src_points[idx, 2])
+        dst_point[i, 2] = np.average(src_point[idx, 2])
     if down_sample_size:
         import open3d as o3d
         pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(dst_points)
+        pcd.points = o3d.utility.Vector3dVector(dst_point)
         down_pcd = pcd.voxel_down_sample(voxel_size=down_sample_size)
-        dst_points = np.array(down_pcd.points)
-    return dst_points
+        dst_point = np.array(down_pcd.points)
+    return dst_point
 
 
 async def _generate_point_cloud_file(src_pc_filename: Union[np.ndarray, str],

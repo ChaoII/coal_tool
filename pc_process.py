@@ -2,18 +2,22 @@ import asyncio
 from typing import Union, Optional
 
 import numpy as np
-import open3d as o3d
+# import open3d as o3d
 
 
-async def draw_point(point: np.ndarray):
-    """
-    绘制点云
-    :param point:
-    :return:
-    """
-    points = o3d.geometry.PointCloud()
-    points.points = o3d.utility.Vector3dVector(point)  # 替换为点云数据
-    o3d.visualization.draw_geometries([points])
+# async def draw_point(points: list[np.ndarray]):
+#     """
+#     绘制点云
+#     :param points:
+#     :return:
+#     """
+#     points_ = []
+#     for point in points:
+#         point_o3d = o3d.geometry.PointCloud()
+#         point_o3d.points = o3d.utility.Vector3dVector(point)  # 替换为点云数据
+#         points_.append(point_o3d)
+#         o3d.visualization.draw_geometries([point_o3d])
+#     o3d.visualization.draw_geometries(points_, mesh_show_wireframe=True, mesh_show_back_face=True)
 
 
 async def calculate_height(xrange: list, height: float, x_edge_rate: float, x_sections: int) -> list:
@@ -90,6 +94,7 @@ async def initial_point_inner(src_point: np.ndarray, coal_weights: Union[np.ndar
     :param coal_weights: 分层煤的量，注意量一定是按照最下层到最上层排列
     :return: 分层后的点云
     """
+
     coal_weights = coal_weights / np.sum(coal_weights)
     total_height = np.max(src_point[:, 2])
     start_height = end_height = 0
@@ -98,13 +103,15 @@ async def initial_point_inner(src_point: np.ndarray, coal_weights: Union[np.ndar
     for coal_weight in coal_weights:
         height = total_height * coal_weight
         end_height = end_height + height
-        mask = (src_point[:, 2] >= start_height) & (src_point[:, 2] < end_height)
+        mask = (src_point[:, 2] >= start_height) & (src_point[:, 2] < end_height + 0.1)
         dst_point = src_point.copy()
         src_point = src_point[~mask]
         dst_point[~mask, 2] = end_height
+        print(f"current:\nmin: {np.min(dst_point[:, 2])}\tmax: {np.max(dst_point[:, 2])}")
+
         start_height = end_height
-        await draw_point(dst_point)
         split_points.append(dst_point)
+    # await draw_point(split_points)
     return split_points, bake_src_point
 
 
@@ -132,11 +139,11 @@ async def inventory_coal_inner(new_point: np.ndarray, split_points: list[np.ndar
 
 
 if __name__ == '__main__':
-    asyncio.run(
-        store_coal_inner(
-            np.loadtxt("test/dst2.txt", delimiter=" ")[:, :3], split_points=[],
-            coal_weight=5000, process_xrange=[100, 116], process_yrange=[0, 50]))
-
     # asyncio.run(
-    #     initial_point(src_point=np.loadtxt("test/dst2.txt", delimiter=" ")[:, :3],
-    #                   coal_weights=np.array([100000, 200000, 300000])))
+    #     store_coal_inner(
+    #         np.loadtxt("test/dst2.txt", delimiter=" ")[:, :3], split_points=[],
+    #         coal_weight=5000, process_xrange=[100, 116], process_yrange=[0, 50]))
+
+    asyncio.run(
+        initial_point_inner(src_point=np.loadtxt("test/dst2.txt", delimiter=" ")[:, :3],
+                            coal_weights=np.array([100000, 200000, 300000])))
